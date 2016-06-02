@@ -372,13 +372,16 @@ def summary(group='all', days=7):
         output.append(footnote)
     return '\n'.join(output)
 
-weekly_template = '''Great work agents!! If you would like to be included in future top ten lists please 
-join our agent-stats group https://www.agent-stats.com/groups.php?group={} . 
-Don’t know what agent-stats is? See here: https://www.agent-stats.com/manual.php . 
-To have your stats show up you need to upload your stats at least right after 
-you see this (right now) and then again right before you see this next week (just upload 
-your stats late Sunday night / early Monday morning when you are done for the night). 
-It’s also a good idea to upload your stats every night.'''
+weekly_template = '''Great work agents!! Jika ingin diikutkan ke ranking top10 mingguan,
+silahkan bergabung dengan group agent-stats kita di
+https://www.agent-stats.com/groups.php?group={} .  Tidak tahu apa itu
+agent-stats? Cek di sini: https://www.agent-stats.com/manual.php.
+Agar statistik mingguan anda muncul, anda harus mengupload statistik
+anda setidaknya sesaat setelah anda melihat post ini (saat ini juga)
+dan sekali lagi sebelum anda melihat posting ini minggu depan (upload
+saja Minggu malam / Senin pagi setelah selesai main). Sangat
+dianjurkan juga untuk mengupload stats anda tiap malam.'''
+
 def weekly_roundup(group):
     if not group: return 'please specify group'
     output = []
@@ -400,13 +403,16 @@ def weekly_roundup(group):
     output.append('_Job started on {} and ran for {}_'.format(start, end-start))
     return '\n'.join(output)
 
-monthly_template = '''Great work agents!! If you would like to be included in future top ten lists please 
-join our agent-stats group https://www.agent-stats.com/groups.php?group={} . 
-Don’t know what agent-stats is? See here: https://www.agent-stats.com/manual.php . 
-To have your stats show up you need to upload your stats at least right after 
-you see this (right now) and then again right before you see this next month (just upload 
-your stats late on the night / early morning before the 1st of the month when you are done for the night). 
-It’s also a good idea to upload your stats every night.'''
+monthly_template ='''Great work agents!! Jika ingin diikutkan ke ranking top15 bulan
+berikutnya, silahkan bergabung dengan group agent-stats kita di
+https://www.agent-stats.com/groups.php?group={} . Tidak tahu apa itu
+agent-stats? Cek di sini: https://www.agent-stats.com/manual.php. Agar
+statistik bulanan anda muncul, anda harus mengupload statistik anda
+setidaknya sesaat setelah anda melihat post ini (saat ini juga) dan
+sekali lagi sebelum anda melihat posting ini bulan depan (upload saja
+tengah malam / pagi hari di tanggal 1). Sangat dianjurkan juga untuk
+mengupload stats anda tiap malam.'''
+
 def monthly_roundup(group):
     if not group: return 'please specify group'
     output = []

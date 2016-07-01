@@ -19,7 +19,7 @@ cm.set_credentials({'host': dbhost, 'db': db, 'user': dbuser, 'passwd': dbpasswd
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(message)s",
-                    datefmt="%H:%M:%S")
+                    datefmt="%Y-%m-%d %H:%M:%S")
 
 from Stat import Stat
 

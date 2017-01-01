@@ -25,11 +25,11 @@ class Stat(object):
             name = '@' + name
         self.db_load(exec_mysql("call FindAgentByName('{name}');".format(name=name))[-1])
 
-    def db_load(self, row):
+    def db_load(self, row): # ATTENTION: DO NOT simply use 'SELECT * FROM stats;' here. It will end in tears.
         row = Row(*row) # your boat...
-    
+
         self.name = row.name
-        self.date = row.date if row.date else '1000/1/1'
+        self.date = row.date if row.date else datetime.date(1000, 1, 1)
         #self.flag = row.flag
         #self.min_ap = row.min_ap
         self.ap = row.ap
@@ -64,10 +64,14 @@ class Stat(object):
         self.sojourner = row.sojourner
         self.recruiter = row.recruiter
 
-        self.agent_id = exec_mysql("SELECT idagents FROM agents WHERE name = '{0}';".format(self.name))[0][0]
+        if str(self.name).startswith('@'):
+            self.agent_id = exec_mysql("SELECT idagents FROM agents WHERE name = '{0}';".format(self.name))[0][0]
+        else: # probably good enough, but if this still blows up then make sure its a numeric id and not just a name missing its @
+            self.agent_id = self.name
+            self.name = exec_mysql("SELECT name FROM agents WHERE idagents = '{0}';".format(self.agent_id))[0][0]
 
     def table_load(self, **row):
-        self.date = parse(row['last_submit'] if not row['last_submit'].startswith('0') else '1000/1/1').date()
+        self.date = parse(row['last_submit'] if row['last_submit'] and not row['last_submit'].startswith('0') else '1000/1/1').date()
         self.name = row['name']
         self.faction = row['faction']
         self.level = row['level']
@@ -123,7 +127,7 @@ class Stat(object):
         ranks = ['Onyx', 'Platinum', 'Gold', 'Silver', 'Bronze', 'Locked']
         sorted_badges = sorted([a.split(' ')[-1] for a in get_badges(self.__dict__).values()], key=lambda x: ranks.index(x))
         expanded_badges = list(chain.from_iterable([ranks[ranks.index(a):] for a in sorted_badges]))
-        
+
         if 0 <= self.ap:
             level = 1
         if 2500 <= self.ap:
@@ -172,13 +176,13 @@ class Stat(object):
             if expanded_badges.count('Platinum') < 4 or expanded_badges.count('Onyx') < 2:
                 return level
             level = 16
-        
+
         return level
 
     @cached_property
     def reasons(self):
         return self.validate()
-        
+
     @cached_property
     def flag(self):
         return bool(self.reasons)
@@ -223,14 +227,18 @@ class Stat(object):
         if (self.translator/15) > self.hacker:
             reasons.append( 'hacker:translator %s < %s/15' % (self.hacker, self.translator) )
         
+        # there was a missionday where they didnt require missions at all. 100 UPV would get you the badge
+        # http://www.pref.iwate.jp/dbps_data/_material_/_files/000/000/031/399/morioka0621.pdf (in japanese, on page 2)
+        #if self.missionday > self.specops:
+        #    reasons.append( 'missionday:specops %s > %s' % (self.missionday, self.specops) )
+
         # this catches faction flippers unfortunately
         #if self.min_ap > self.ap:
         #    reasons.append( 'ap:min_ap %s < %s' % (self.ap, self.min_ap) )
 
         #if self.apdiff > self.ap-self.min_ap:
         #    reasons.append( 'apdiff %s > %s' % (self.apdiff, self.ap-self.min_ap) )
-        
-        
+
         if not reasons:
             exec_mysql("UPDATE agents SET apdiff={0} WHERE `name`='{1}';".format(self.ap-self.min_ap, self.name))
 
@@ -238,7 +246,7 @@ class Stat(object):
 
     def save(self):
         self.flag, self.min_ap # hack to make sure these are in the cache
-        
+
         sql = '''INSERT INTO `stats`
                  SET idagents={agent_id},
                      `date`='{date}',
@@ -324,5 +332,6 @@ class Stat(object):
 # purifier >= disruptor
 # purifier >= neutralizer
 # hacker >= translator/15
+## missionday > specops
 # min_ap = liberator*125 + min(-(-max(0,(builder-liberator*8))/7)*65, -(-max(0,(builder-liberator*8))/8)*125) + connector*313 + mind_controller*1250 + liberator*500 + engineer*125 + purifier*75 + recharger/15000*10 + disruptor*187 + salvator*750
 ## requirement[level] <= ap

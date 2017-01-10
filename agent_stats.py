@@ -429,13 +429,14 @@ def monthly_roundup(group):
     output.append(group_name)
     logging.info('getting monthly top lists')
     charts = get_stats(group_id, 'monthly', args.number, submitters)
-    output.append('*Top %s (of %s reporting) for the month of %s*' % (num2words(min(args.number, submitters[0])), num2words(submitters[0]), (start - datetime.timedelta(days=7)).date().strftime("%B")))
+    month = (start - datetime.timedelta(days=start.day)).date()
+    output.append('*Top %s (of %s reporting) for the month of %s*' % (num2words(min(args.number, submitters[0])), num2words(submitters[0]), month.strftime("%B")))
     output.append(charts)
     output.append('')
     output.append('Recent badge dings:')
     output.append('')
     logging.info('getting badge dings')
-    output.append(summary(group_id, 30))
+    output.append(summary(group_id, month.day))
     output.append('')
     output.append(monthly_template.format(num2words(args.number).lower(), group_id).replace('\n', ''))
     end = datetime.datetime.now()
@@ -446,7 +447,7 @@ def monthly_roundup(group):
 custom_template = '''Great work agents!! If you would like to be included in future top {} lists please 
 join our agent-stats group https://www.agent-stats.com/groups.php?group={} . 
 Don’t know what agent-stats is? See here: https://www.agent-stats.com/manual.php . 
-For your stats show up pn this list you need to have uploaded your stats at least twice between {} and {}'''
+For your stats show up on this list you need to have uploaded your stats at least twice between {} and {}'''
 def custom_roundup(group):
     group_id, group_name = get_groups(group)
     if not group_id: return 'please specify group'
@@ -458,6 +459,7 @@ def custom_roundup(group):
     startDate, endDate = get_custom_date_ranges(group)
     logging.info('setting off a refresh. waiting 10 seconds to make sure it finishes')
     r = s.post('https://api.agent-stats.com/groups/{}/refresh'.format(group_id))
+    r.raise_for_status() # debug
     sleep(10)
     logging.info('getting custom top lists')
     charts = get_stats(group_id, 'custom', args.number, submitters)
@@ -488,18 +490,16 @@ def test(group):
     print(get_custom_date_ranges(group))
 
 def check_for_applicants(group):
-    html = get_html(scoreboard=group)
-    soup = BeautifulSoup(html, "html.parser")
-    applicants = None
-    for elem in soup(text='Agents waiting for validation:'):
-        applicants = elem.parent.parent.text.replace('\n', '').split('@')[1:]
-        break
+    group_id, group_name = get_groups(group)
+    r = s.get('https://api.agent-stats.com/groups/{}/pending'.format(group_id), stream=True)
+    r.raise_for_status() # debug
     message = []
-    if applicants:
+    if r.json():
         message.append('Agent(s) awaiting validation to the {} group:'.format(group))
-        for agent in applicants:
-            message.append('    @{}'.format(agent))
-        message.append('\nGo to {} and click on the [View admin panel] button to take care of it.'.format(html.partition('give them this url: <a href="')[2].partition('">https://www.agent-stats.com/groups.php')[0]).partition('&')[0])
+        for agent in r.json():
+            message.append('    @{username}'.format(**dict(agent)))
+
+        message.append('\nGo to https://www.agent-stats.com/groups.php?group={} and click on the [View admin panel] button to take care of it.'.format(group_id))
     return '\n'.join(message)
 
 def update_group_names(group):

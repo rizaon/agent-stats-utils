@@ -380,7 +380,7 @@ silahkan bergabung dengan group agent-stats kita di
 https://www.agent-stats.com/groups.php?group={} . Tidak tahu apa itu 
 agent-stats? Cek di sini: https://www.agent-stats.com/manual.php. 
 Agar statistik mingguan anda muncul, anda harus mengupload statistik 
-anda setidaknya sesaat setelah anda melihat post ini (saat ini juga) 
+anda setidaknya *2 kali*:sesaat setelah anda melihat post ini (saat ini juga) 
 dan sekali lagi sebelum anda melihat posting ini minggu depan (upload 
 saja Minggu malam / Senin pagi setelah selesai main). Sangat 
 dianjurkan juga untuk mengupload stats anda tiap malam.'''
@@ -414,7 +414,7 @@ berikutnya, silahkan bergabung dengan group agent-stats kita di
 https://www.agent-stats.com/groups.php?group={} . Tidak tahu apa itu 
 agent-stats? Cek di sini: https://www.agent-stats.com/manual.php. Agar 
 statistik bulanan anda muncul, anda harus mengupload statistik anda 
-setidaknya sesaat setelah anda melihat post ini (saat ini juga) dan 
+setidaknya *2 kali*: sesaat setelah anda melihat post ini (saat ini juga) dan 
 sekali lagi sebelum anda melihat posting ini bulan depan (upload saja 
 tengah malam / pagi hari di tanggal 1). Sangat dianjurkan juga untuk 
 mengupload stats anda tiap malam.'''

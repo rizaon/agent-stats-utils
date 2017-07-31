@@ -40,6 +40,7 @@ CREATE TABLE `stats` (
   `ap` bigint(20) unsigned DEFAULT NULL,
   `explorer` bigint(20) unsigned DEFAULT NULL,
   `seer` bigint(20) unsigned DEFAULT NULL,
+  `recon` bigint(20) unsigned DEFAULT NULL,
   `trekker` bigint(20) unsigned DEFAULT NULL,
   `builder` bigint(20) unsigned DEFAULT NULL,
   `connector` bigint(20) unsigned DEFAULT NULL,
@@ -57,6 +58,7 @@ CREATE TABLE `stats` (
   `translator` bigint(20) unsigned DEFAULT NULL,
   `sojourner` bigint(20) unsigned DEFAULT NULL,
   `recruiter` bigint(20) unsigned DEFAULT NULL,
+  `magnusbuilder` bigint(20) unsigned DEFAULT NULL,
   `collector` bigint(20) unsigned DEFAULT NULL,
   `binder` bigint(20) unsigned DEFAULT NULL,
   `country-master` bigint(20) unsigned DEFAULT NULL,
@@ -85,6 +87,7 @@ SELECT
   `stats`.`level`,
   `stats`.`explorer`,
   `stats`.`seer`,
+  `stats`.`recon`,
   `stats`.`trekker`,
   `stats`.`builder`,
   `stats`.`connector`,
@@ -111,7 +114,8 @@ SELECT
   `stats`.`smuggler`,
   `stats`.`link-master`,
   `stats`.`controller`,
-  `stats`.`field-master`
+  `stats`.`field-master`,
+  `stats`.`magnusbuilder`
 FROM `stats`, `agents`
 WHERE `stats`.`idagents` = `agents`.`idagents` AND `agents`.`name` = `agentname`;
 END$$

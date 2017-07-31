@@ -13,14 +13,19 @@ import requests
 from num2words import num2words as n2w
 from bs4 import BeautifulSoup
 from functools import lru_cache
+from titlecase import titlecase
 
 from Stat import Stat
 from util import mail, get_html
+try:
+    from extra_stats import compute_extra_categories # see extra_stats.py.example to see what this file should look like
+except ImportError:
+    compute_extra_categories = lambda data: ({}, [], data)
 
 from util import exec_mysql, cm
-from secrets import dbhost, db, dbuser, dbpasswd, api_key
+from secrets import dbconfig, api_key
 
-cm.set_credentials({'host': dbhost, 'db': db, 'user': dbuser, 'passwd': dbpasswd})
+cm.set_credentials(dbconfig)
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(message)s",
@@ -35,9 +40,24 @@ def num2words(n):
         return n2w(n).title()
     return str(n)
 
+def abbreviations(word, **kwargs):
+    if word.upper() in ('MU',):
+        return word.upper()
+
 def get_stats(group_id, time_span='now', number=10, submitters=[0]):
+    time_span = {'all time': 'now',
+                 'monthly': 'month',
+                 'weekly': 'week'}.get(time_span, time_span)
+    output = []
+    logging.info('read table: group {}, span {}'.format(groups()[group_id], time_span))
+
+    data = list(read_table(group_id, time_span))
+
+    extra_definitions, extra_categories, data = compute_extra_categories(data)
+
     definitions = {'explorer': '_(New Portals Visited)_',
                    'seer': '_(Portals Discovered)_',
+                   'recon': '_(OPR Agreements)_',
                    'trekker': '_(Distance Walked)_',
                    'builder': '_(Resonators Deployed)_',
                    'connector': '_(Links Created)_',
@@ -55,6 +75,7 @@ def get_stats(group_id, time_span='now', number=10, submitters=[0]):
                    'translator': '_(Glyph Hack Points)_',
                    'sojourner': '_(Longest Hacking Streak)_',
                    'recruiter': '_(Agents successfully recruited)_',
+                   'magnusbuilder': '_(Unique Resonator Slots Deployed)_',
                    'collector': '_(XM Collected)_',
                    'binder': '_(Longest Link Ever Created)_',
                    'country-master': '_(Largest Control Field)_',
@@ -64,30 +85,36 @@ def get_stats(group_id, time_span='now', number=10, submitters=[0]):
                    'smuggler': '_(Max Time Link Maintained)_',
                    'link-master': '_(Max Link Length × Days)_',
                    'controller': '_(Max Time Field Held)_',
-                   'field-master': '_(Largest Field MUs × Days)_'}
+                   'field-master': '_(Largest Field MUs × Days)_',
+                   'missionday':'_(Mission Days Attended)_'}
+    definitions.update(extra_definitions)
 
-    time_span = {'all time': 'now',
-                 'monthly': 'month',
-                 'weekly': 'week'}.get(time_span, time_span)
-    output = []
-    logging.info('read table: group {}, span {}'.format(groups()[group_id], time_span))
-    data = list(read_table(group_id, time_span))
-    categories = ('ap', 'explorer', 'trekker', 'builder', 'connector',
+    # these categories are what become the topN lists. definitions above are just for reference (still needed if a category is active)
+    categories = ['ap', 'explorer', 'trekker', 'builder', 'connector',
                   'mind-controller', 'illuminator', 'recharger', 'liberator',
                   'pioneer', 'engineer', 'purifier', 'hacker', 'translator',
-                  'specops', 'seer', 'collector', 'neutralizer', 'disruptor',
-                  'salvator')
+                  'specops', 'seer', 'recon', 'collector', 'neutralizer', 'disruptor',
+                  'salvator', 'magnusbuilder', 'missionday'] + extra_categories
     submitters[0] = 0
     for category in categories:
-        output.append('\n*Top %s* %s' % (category.title(), definitions.get(category.lower(), '')))
-        top_list = sorted((line for line in data if int(line[category])), key=lambda k: int(k[category]), reverse=True)
+        output.append('\n*Top %s* %s' % (titlecase(category, callback=abbreviations), definitions.get(category.lower(), '')))
+        top_list = sorted((line for line in data if 0 < float(line[category])), key=lambda k: float(k[category]), reverse=True)
         submitters[0] = max(submitters[0], len(top_list))
         i = -1
         for i, line in enumerate(top_list):
-            if i > number-1 and int(line[category]) != temp:# or int(line[category]) == 0: # the 0s get filtered out on that inscrutable line above
+            datum = float(line[category])
+            if i > number-1 and datum != temp: # the 0s got filtered out on that inscrutable line above
                 break
-            output.append('{}  {:,}'.format(line['name'], int(line[category])))
-            temp = int(line[category])
+
+            if datum.is_integer():
+                datum_string = '{:,}'.format(int(datum))
+            elif datum > 100000:
+                datum_string = '{:,}'.format(datum)
+            else:
+                datum_string = '{:,g}'.format(datum)
+
+            output.append('{}  {}'.format(line['name'], datum_string))
+            temp = datum
         if i < 0:
             output.pop()
     return '\n'.join(output)
@@ -137,7 +164,7 @@ def new_badges(old_data, new_data):
         if old_rank != new_rank: # still detect changes in Onyx multiples
             old_rank = old_rank.split()[-1]
             try:
-                if ranks.index(old_rank) < ranks.index(new_rank): # if new_rank has a multiplier on it .index() will fail with ValueError
+                if ranks.index(old_rank) < ranks.index(new_rank): # else if new_rank has a multiplier on it .index() will fail with ValueError
                     result[category] = ranks[ranks.index(old_rank)+1:ranks.index(new_rank)+1]
             except ValueError:
                 result[category] = [new_data[category]]
@@ -147,8 +174,8 @@ def englishify(new_badges):
     data = [badge.upper()+' ' + ", ".join(ranks[:-2] + [" dan ".join(ranks[-2:])]) for badge, ranks in new_badges.items()]
     return ", ".join(data[:-2] + [" dan ".join(data[-2:])])
 
-def colate_agents():
-    logging.info('colate agents')
+def collate_agents():
+    logging.info('collate agents')
     general_groups = dict(exec_mysql("SELECT name, idgroups FROM groups WHERE name IN ('smurfs', 'frogs', 'all');"))
     for agent_id, name, faction in exec_mysql('select idagents, name, faction from agents;'):
         faction = 'frogs' if faction == 'enl' else 'smurfs'
@@ -175,7 +202,7 @@ def snarf(group=None):
                          SET `name`='{}', url='{}';'''.format(group_name, group_id)
                 exec_mysql(sql)
             results += snarf(group_id) # getting all recursive and shiz
-        colate_agents()
+        collate_agents()
         return results
     else:
         added, removed, flagged, flipped = [], [], [], []
@@ -238,6 +265,7 @@ def snarf(group=None):
 def get_badges(data):
     categories = {'explorer': [100, 1000, 2000, 10000, 30000],
                   'seer': [10, 50, 200, 500, 5000],
+                  'recon': [100, 750, 2500, 5000, 10000],
                   'trekker': [10, 100, 300, 1000, 2500],
                   'builder': [2000, 10000, 30000, 100000, 200000],
                   'connector': [50, 1000, 5000, 25000, 100000],
@@ -268,6 +296,19 @@ def get_badges(data):
                 if multiplier > 1:
                     current = '%sx %s' % (multiplier, current)
         result[category] = current
+    
+    #for category, ranks in {'magnusbuilder': [1331, 3113]}.items(): # doesn't strictly have to be a loop, but i want it to match above
+    #    current = 'Locked'
+    #    multiplier = 1
+    #    for rank, badge in zip(ranks, ['Builder', 'Architect']):
+    #        if data[category] not in ['-', None] and int(data[category]) >= rank:
+    #            current = badge
+    #        if current == 'Architect':
+    #            multiplier = data[category] // rank
+    #            if multiplier > 1:
+    #               current = '%sx %s' % (multiplier, current)
+    #    result[category] = current
+
     return result
 
 def summary(group='all', days=7):
@@ -279,6 +320,7 @@ def summary(group='all', days=7):
 
     headers = ('explorer',
                'seer',
+               'recon',
                'trekker',
                'builder',
                'connector',
@@ -295,10 +337,11 @@ def summary(group='all', days=7):
                'hacker',
                'translator',
                'sojourner',
-               'recruiter')
+               'recruiter',
+               'magnusbuilder')
 
-    sql_before = '''SELECT x.name, s.`date`, `level`, ap, explorer, seer, trekker, builder, connector, `mind-controller` mind_controller, illuminator, 
-                           recharger, liberator, pioneer, engineer, purifier, guardian, specops, missionday, hacker, translator, sojourner, recruiter
+    sql_before = '''SELECT x.name, s.`date`, `level`, ap, explorer, seer, recon, trekker, builder, connector, `mind-controller` mind_controller, illuminator,
+                           recharger, liberator, pioneer, engineer, purifier, guardian, specops, missionday, hacker, translator, sojourner, recruiter, magnusbuilder
                     FROM (
                         SELECT a.name name, s.idagents id, MAX(s.date) AS date
                         FROM agents a, stats s, membership m, groups g
@@ -308,7 +351,7 @@ def summary(group='all', days=7):
                               g.`url` = '{}' AND
                               s.flag != 1 AND
                               date < ( CURDATE() - INTERVAL {} DAY )
-                        GROUP BY id ) x 
+                        GROUP BY id ) x
                     JOIN stats s ON x.id = s.idagents AND x.date = s.date
                  '''.format(group_id, days)
 
@@ -319,8 +362,8 @@ def summary(group='all', days=7):
             baseline[agent] = {'date': row[1], 'level': row[2], 'ap': row[3],
                                'badges': get_badges(dict(zip(headers, row[4:])))}
 
-    sql_now = '''SELECT x.name, s.`date`, `level`, ap, explorer, seer, trekker, builder, connector, `mind-controller` mind_controller, illuminator, 
-                           recharger, liberator, pioneer, engineer, purifier, guardian, specops, missionday, hacker, translator, sojourner, recruiter
+    sql_now = '''SELECT x.name, s.`date`, `level`, ap, explorer, seer, recon, trekker, builder, connector, `mind-controller` mind_controller, illuminator,
+                           recharger, liberator, pioneer, engineer, purifier, guardian, specops, missionday, hacker, translator, sojourner, recruiter, magnusbuilder
                     FROM (
                         SELECT a.name name, s.idagents id, MAX(s.date) AS date
                         FROM agents a, stats s, membership m, groups g
@@ -330,7 +373,7 @@ def summary(group='all', days=7):
                               g.`url` = '{}' AND
                               s.flag != 1 AND
                               date >= ( CURDATE() - INTERVAL {} DAY )
-                        GROUP BY id ) x 
+                        GROUP BY id ) x
                     JOIN stats s ON x.id = s.idagents AND x.date = s.date
               '''.format(group_id, days)
     output = []
